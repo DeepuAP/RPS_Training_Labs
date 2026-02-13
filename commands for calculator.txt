@@ -57,6 +57,9 @@ Stop-Process -Name notepad -Force
   This is a simplified Lab version of the Deploy-Application script.
 #>
 
+# --- THE FIX: Load the Windows Forms Library first ---
+Add-Type -AssemblyName System.Windows.Forms
+
 ##*===============================================
 ##* VARIABLE DECLARATION
 ##*===============================================
@@ -79,6 +82,7 @@ Stop-Process -Name notepad -Force
 $dirFiles = "$PSScriptRoot\Files"
 
 # 1. Show Welcome Message (Simulated)
+# Now that we loaded the assembly at the top, this will work!
 [System.Windows.Forms.MessageBox]::Show("Welcome to the installation of $appName", "Installation")
 
 # 2. Perform Installation
@@ -90,12 +94,10 @@ function Execute-MSI {
 }
 
 # --- THIS IS THE LINE YOUR INSTRUCTOR WANTS ---
+# Ensure your 7zip.msi is actually in the C:\PSLab\Toolkit\Files folder!
 Execute-MSI -Action 'Install' -Path "$dirFiles\7zip.msi"
 
 # 3. Finish
 Write-Host "Installation Complete." -ForegroundColor Green
 
-# 6. Clean up
-Remove-Item $ZipFile
-Write-Host "Installation Complete! Toolkit is located at C:\PSLab\Toolkit" -ForegroundColor Green
 
