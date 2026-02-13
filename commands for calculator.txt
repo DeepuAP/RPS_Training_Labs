@@ -1,0 +1,50 @@
+# Install 7-Zip Silently
+Write-Host "Installing 7-Zip..."
+Start-Process msiexec.exe -ArgumentList "/i C:\Lab\7zip.msi /qn" -Wait
+
+# Verify it exists (Registry Check)
+Get-Package -Name "7-Zip*" | Select-Object Name, ProviderName
+
+# Uninstall 7-Zip (We find the IdentifyingNumber/GUID first)
+$App = Get-WmiObject Win32_Product | Where-Object { $_.Name -match "7-Zip" }
+Write-Host "Uninstalling $($App.Name)..."
+Start-Process msiexec.exe -ArgumentList "/x $($App.IdentifyingNumber) /qn" -Wait
+
+
+
+
+# 1. Create the dummy script
+Set-Content -Path "C:\Lab\script.cmd" -Value "echo Active Setup Ran > C:\Users\Public\AS_Log.txt"
+
+# 2. Create the Registry Key
+New-Item -Path "HKLM:\Software\Microsoft\Active Setup\Installed Components\TestApp" -Force
+
+# 3. Set the StubPath (The command to run)
+Set-ItemProperty -Path "HKLM:\Software\Microsoft\Active Setup\Installed Components\TestApp" -Name "StubPath" -Value "C:\Lab\script.cmd"
+
+
+
+
+
+# Create a dummy file
+New-Item "C:\Lab\file.txt" -ItemType File -Force
+
+# Copy, Move, Delete
+Copy-Item "C:\Lab\file.txt" "C:\Windows\Temp\"
+Move-Item "C:\Windows\Temp\file.txt" "C:\Lab\file_moved.txt"
+Remove-Item "C:\Lab\file.txt"
+
+# Registry Creation & Deletion
+New-Item -Path "HKLM:\Software\TestApp" -Force
+Set-ItemProperty -Path "HKLM:\Software\TestApp" -Name "Version" -Value "1.0"
+Remove-Item "HKLM:\Software\TestApp" -Recurse
+
+
+
+
+# Restart the Spooler service
+Stop-Service spooler
+Start-Service spooler
+
+# Kill the Notepad we started earlier
+Stop-Process -Name notepad -Force
