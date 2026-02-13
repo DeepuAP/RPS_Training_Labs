@@ -47,4 +47,31 @@ Stop-Service spooler
 Start-Service spooler
 
 # Kill the Notepad we started earlier
+
 Stop-Process -Name notepad -Force
+
+
+
+# 1. Create the Lab Folder
+New-Item -Path "C:\PSLab" -ItemType Directory -Force
+
+# 2. Define the Download URL (Official GitHub Release)
+$Url = "https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases/download/3.10.0/PSAppDeployToolkit_v3.10.0.zip"
+$ZipFile = "C:\PSLab\Toolkit.zip"
+
+# 3. Download the Zip File
+Write-Host "Downloading Toolkit..." -ForegroundColor Cyan
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri $Url -OutFile $ZipFile
+
+# 4. Unzip the Files
+Write-Host "Extracting Files..." -ForegroundColor Cyan
+Expand-Archive -Path $ZipFile -DestinationPath "C:\PSLab" -Force
+
+# 5. Rename the folder for easier access
+$ExtractedFolder = Get-ChildItem "C:\PSLab" -Directory | Where-Object { $_.Name -like "PSAppDeployToolkit*" }
+Rename-Item -Path $ExtractedFolder.FullName -NewName "Toolkit"
+
+# 6. Clean up
+Remove-Item $ZipFile
+Write-Host "Installation Complete! Toolkit is located at C:\PSLab\Toolkit" -ForegroundColor Green
