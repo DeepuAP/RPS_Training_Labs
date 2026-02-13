@@ -1,0 +1,60 @@
+<#
+.SYNOPSIS
+    Practice Lab Script: Loops, INI, Logging, and Progress
+#>
+
+# 1. Setup Logging
+$LogFile = "C:\PSLab\Installation.log"
+Start-Transcript -Path $LogFile -Force
+
+# 2. Show Welcome (Simulated Dialog)
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.MessageBox]::Show("Starting Installation Lab. Click OK to continue.", "Welcome")
+
+# 3. Create INI Config File
+Write-Host "Creating Config File..."
+$IniFile = "C:\PSLab\app.ini"
+Set-Content $IniFile "[Settings]"
+Add-Content $IniFile "Version=1.0"
+Add-Content $IniFile "InstallDate=$(Get-Date)"
+
+# 4. Loop Install (Dummy Apps)
+$Apps = @("notepad", "calc")
+foreach ($App in $Apps) {
+    Write-Host "Launching $App..."
+    # We use Start-Process to launch them
+    Start-Process $App
+    Start-Sleep -Seconds 1
+}
+
+# 5. Write MSI Log & Capture Return Code
+Write-Host "Installing 7-Zip with Logging..."
+# Shows Progress Bar
+Write-Progress -Activity "Installing Applications" -Status "Installing 7-Zip..." -PercentComplete 50
+
+$Installer = "C:\Lab\7zip.msi"
+$MSILog = "C:\PSLab\7zip_msi.log"
+
+# Run MSI and capture exit code
+$Process = Start-Process msiexec.exe -ArgumentList "/i $Installer /qn /L*v $MSILog" -Wait -PassThru
+$ReturnCode = $Process.ExitCode
+
+if ($ReturnCode -eq 0) {
+    Write-Host "Success: 7-Zip Installed (Code 0)" -ForegroundColor Green
+} else {
+    Write-Host "Error: Installation failed with code $ReturnCode" -ForegroundColor Red
+}
+
+# 6. Check Pending Reboot (Registry Method)
+$RebootKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"
+if (Test-Path $RebootKey) {
+    Write-Host "PENDING REBOOT DETECTED" -ForegroundColor Yellow
+    [System.Windows.Forms.MessageBox]::Show("A reboot is required.", "Reboot")
+} else {
+    Write-Host "No reboot pending." -ForegroundColor Green
+}
+
+# 7. Close Progress & Stop Logging
+Write-Progress -Activity "Installing Applications" -Completed
+Stop-Transcript
+[System.Windows.Forms.MessageBox]::Show("Lab Complete!", "Finished")
