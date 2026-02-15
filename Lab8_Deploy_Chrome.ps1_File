@@ -1,43 +1,58 @@
 <#
 .SYNOPSIS
-  Chrome Installation Script (Deep Clean Version)
+  Chrome Installation Script (Registry Fix + Deep Clean + Install)
 #>
 
+# --- VARIABLES ---
+# IMPORTANT: Ensure your file in 'Files' folder is named 'chrome.msi'
 $MSIName = "chrome.msi" 
 $dirFiles = "$PSScriptRoot\Files"
 $Installer = "$dirFiles\$MSIName"
+$LogPath = "C:\PSLab\ChromeFinal.log"
 
-Write-Host "--- STARTING DEEP CLEAN ---" -ForegroundColor Yellow
+Write-Host "--- STEP 1: FIXING REGISTRY PERMISSIONS (Error 1402) ---" -ForegroundColor Cyan
+# This fixes the specific error found in your log file where Installer cannot access "Rollback\Scripts"
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Rollback\Scripts"
+try {
+    if (-not (Test-Path $RegPath)) {
+        New-Item -Path $RegPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        Write-Host "Fixed: Registry Key Created." -ForegroundColor Green
+    } else {
+        Write-Host "Registry Key already exists. Good." -ForegroundColor Green
+    }
+} catch {
+    Write-Host "Warning: Could not create Registry Key. Running as Admin?" -ForegroundColor Yellow
+}
 
-# 1. KILL PROCESSES (Added GoogleUpdate)
-Write-Host "Killing Processes..."
+Write-Host "--- STEP 2: NUCLEAR CLEANUP (Error 1603) ---" -ForegroundColor Cyan
+# Kill all Chrome & Updater processes to unlock files
 Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue
 Stop-Process -Name GoogleUpdate -Force -ErrorAction SilentlyContinue
 Get-Service *gupdate* | Stop-Service -Force -ErrorAction SilentlyContinue
 
-# 2. FORCE UNINSTALL VIA MSI (The "Nuclear" Option)
-# This forces the MSI to remove any version that matches itself
+# Force remove old versions if they exist
 if (Test-Path $Installer) {
-    Write-Host "Scrubbing old versions using MSI source..."
+    Write-Host "Scrubbing old versions..."
     Start-Process msiexec.exe -ArgumentList "/x `"$Installer`" /qn" -Wait
 }
 
-# 3. REGISTRY CLEANUP (Optional but helpful for 1603)
-Write-Host "Cleaning Registry..."
-Remove-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Recurse -ErrorAction SilentlyContinue
+Write-Host "--- STEP 3: INSTALLING CHROME ---" -ForegroundColor Cyan
 
-Write-Host "--- CLEANUP DONE. INSTALLING NOW ---" -ForegroundColor Yellow
-
-# 4. INSTALL WITH LOGGING
-# We add /l*v to generate a log file so if it fails, we know why.
-$LogPath = "C:\PSLab\ChromeInstall.log"
-$Process = Start-Process msiexec.exe -ArgumentList "/i `"$Installer`" /qn /norestart /l*v `"$LogPath`"" -Wait -PassThru
-
-if ($Process.ExitCode -eq 0) {
-    Write-Host "SUCCESS! Chrome Installed." -ForegroundColor Green
-} elseif ($Process.ExitCode -eq 3010) {
-    Write-Host "SUCCESS! (Reboot Required)." -ForegroundColor Yellow
+if (Test-Path $Installer) {
+    # Run Install with Verbose Logging
+    $Process = Start-Process msiexec.exe -ArgumentList "/i `"$Installer`" /qn /norestart /l*v `"$LogPath`"" -Wait -PassThru
+    
+    if ($Process.ExitCode -eq 0) {
+        Write-Host "SUCCESS: Chrome Installed Correctly." -ForegroundColor Green
+    } elseif ($Process.ExitCode -eq 3010) {
+        Write-Host "SUCCESS: Installed (Reboot Required)." -ForegroundColor Yellow
+    } else {
+        Write-Host "CRITICAL ERROR: Failed with code $($Process.ExitCode)" -ForegroundColor Red
+        Write-Host "LOG FILE: $LogPath" -ForegroundColor Red
+    }
 } else {
-    Write-Host "ERROR: Failed with code $($Process.ExitCode)" -ForegroundColor Red
-    Write-Host "Check the log file at: $LogPath" -ForegroundColor Red
+    Write-Host "FILE NOT FOUND: $Installer" -ForegroundColor Red
+    Write-Host "Please rename your file in the 'Files' folder to 'chrome.msi'" -ForegroundColor Red
 }
+
+Write-Host "Lab Script Finished."
