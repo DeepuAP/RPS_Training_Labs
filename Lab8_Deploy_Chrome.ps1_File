@@ -1,77 +1,43 @@
 <#
 .SYNOPSIS
-  Chrome Installation Script (Lab Version - Fixed with Clean Up)
+  Chrome Installation Script (Deep Clean Version)
 #>
 
-# 1. Load Window Tools (Required for Popups)
-Add-Type -AssemblyName System.Windows.Forms
-
-# --- VARIABLES ---
-# IMPORTANT: Check the name of your MSI file in the 'Files' folder!
-# If your file is named 'GoogleChromeStandaloneEnterprise64.msi', change "chrome.msi" below to that name.
 $MSIName = "chrome.msi" 
 $dirFiles = "$PSScriptRoot\Files"
 $Installer = "$dirFiles\$MSIName"
 
-# --- CUSTOM FUNCTIONS ---
+Write-Host "--- STARTING DEEP CLEAN ---" -ForegroundColor Yellow
 
-function Show-InstallationWelcome {
-    param([string]$CloseApps)
-    # This popup warns the user
-    [System.Windows.Forms.MessageBox]::Show("Installation Starting. Please save your work. Chrome will close automatically.", "Welcome")
-}
+# 1. KILL PROCESSES (Added GoogleUpdate)
+Write-Host "Killing Processes..."
+Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue
+Stop-Process -Name GoogleUpdate -Force -ErrorAction SilentlyContinue
+Get-Service *gupdate* | Stop-Service -Force -ErrorAction SilentlyContinue
 
-function Execute-CleanUp {
-    Write-Host "Performing Pre-Install Clean Up..." -ForegroundColor Yellow
-    
-    # 1. Force Kill Chrome Processes (Fixes 'File in Use' errors)
-    Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue
-    
-    # 2. Uninstall existing versions (Fixes Error 1603 conflicts)
-    try {
-        $Chrome = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Chrome*" }
-        if ($Chrome) { 
-            Write-Host "Removing existing Chrome version..." -ForegroundColor Yellow
-            $Chrome.Uninstall() | Out-Null
-        }
-    } catch {
-        Write-Host "No previous version found or WMI error. Continuing..." -ForegroundColor Gray
-    }
-    Write-Host "Clean Up Complete." -ForegroundColor Green
-}
-
-function Execute-MSI {
-    param([string]$Action, [string]$Path)
-    Write-Host "Starting Chrome Installation..." -ForegroundColor Cyan
-    
-    # Run the MSI Silently with /norestart to prevent forced reboots
-    $Process = Start-Process msiexec.exe -ArgumentList "/i `"$Path`" /qn /norestart" -Wait -PassThru
-    
-    if ($Process.ExitCode -eq 0) {
-        Write-Host "Success: Chrome Installed (Code 0)." -ForegroundColor Green
-    } elseif ($Process.ExitCode -eq 3010) {
-        Write-Host "Success: Installed (Reboot Required)." -ForegroundColor Yellow
-    } else {
-        Write-Host "Error: Failed with code $($Process.ExitCode)" -ForegroundColor Red
-    }
-}
-
-# --- MAIN EXECUTION ---
-
-# 1. Run Clean Up First (Crucial for fixing Error 1603)
-Execute-CleanUp
-
-# 2. Show Welcome Message
-Show-InstallationWelcome -CloseApps "Google Chrome"
-
-# 3. Verify File Exists before trying to install
+# 2. FORCE UNINSTALL VIA MSI (The "Nuclear" Option)
+# This forces the MSI to remove any version that matches itself
 if (Test-Path $Installer) {
-    # 4. Install
-    Execute-MSI -Action 'Install' -Path $Installer
-} else {
-    Write-Host "CRITICAL ERROR: File not found at $Installer" -ForegroundColor Red
-    Write-Host "Please rename your downloaded MSI to '$MSIName' inside the 'Files' folder."
+    Write-Host "Scrubbing old versions using MSI source..."
+    Start-Process msiexec.exe -ArgumentList "/x `"$Installer`" /qn" -Wait
 }
 
-# 5. Finish
-Write-Host "Lab Complete." -ForegroundColor Green
+# 3. REGISTRY CLEANUP (Optional but helpful for 1603)
+Write-Host "Cleaning Registry..."
+Remove-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Recurse -ErrorAction SilentlyContinue
+
+Write-Host "--- CLEANUP DONE. INSTALLING NOW ---" -ForegroundColor Yellow
+
+# 4. INSTALL WITH LOGGING
+# We add /l*v to generate a log file so if it fails, we know why.
+$LogPath = "C:\PSLab\ChromeInstall.log"
+$Process = Start-Process msiexec.exe -ArgumentList "/i `"$Installer`" /qn /norestart /l*v `"$LogPath`"" -Wait -PassThru
+
+if ($Process.ExitCode -eq 0) {
+    Write-Host "SUCCESS! Chrome Installed." -ForegroundColor Green
+} elseif ($Process.ExitCode -eq 3010) {
+    Write-Host "SUCCESS! (Reboot Required)." -ForegroundColor Yellow
+} else {
+    Write-Host "ERROR: Failed with code $($Process.ExitCode)" -ForegroundColor Red
+    Write-Host "Check the log file at: $LogPath" -ForegroundColor Red
+}
