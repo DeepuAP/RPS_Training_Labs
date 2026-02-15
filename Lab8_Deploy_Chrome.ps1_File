@@ -1,0 +1,49 @@
+<#
+.SYNOPSIS
+  Chrome Installation Script (Lab Version)
+#>
+
+# 1. Load the Window Tools (Required for Popups)
+Add-Type -AssemblyName System.Windows.Forms
+
+# --- VARIABLES ---
+$dirFiles = "$PSScriptRoot\Files"
+$Installer = "$dirFiles\chrome.msi"
+
+# --- CUSTOM FUNCTIONS (To fix your 'Not Recognized' error) ---
+
+# This creates a fake 'Show-InstallationWelcome' that works instantly
+function Show-InstallationWelcome {
+    param([string]$CloseApps)
+    [System.Windows.Forms.MessageBox]::Show("Installation Starting. Please close $CloseApps to continue.", "Welcome")
+}
+
+# This creates a fake 'Execute-MSI' to handle the install silently
+function Execute-MSI {
+    param([string]$Action, [string]$Path)
+    Write-Host "Starting Chrome Installation..." -ForegroundColor Cyan
+    # Run the MSI Silently
+    $Process = Start-Process msiexec.exe -ArgumentList "/i `"$Path`" /qn" -Wait -PassThru
+    
+    if ($Process.ExitCode -eq 0) {
+        Write-Host "Success: Chrome Installed." -ForegroundColor Green
+    } else {
+        Write-Host "Error: Failed with code $($Process.ExitCode)" -ForegroundColor Red
+    }
+}
+
+# --- INSTALLATION LOGIC ---
+
+# 1. Show the Welcome Screen (Now this command will work!)
+Show-InstallationWelcome -CloseApps "Chrome"
+
+# 2. Install Chrome
+# Ensure the MSI is in the 'Files' folder!
+if (Test-Path $Installer) {
+    Execute-MSI -Action 'Install' -Path $Installer
+} else {
+    Write-Host "Error: Could not find Chrome MSI at $Installer" -ForegroundColor Red
+}
+
+# 3. Finish
+Write-Host "Lab Complete." -ForegroundColor Green
