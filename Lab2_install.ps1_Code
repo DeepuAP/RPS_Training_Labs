@@ -1,0 +1,47 @@
+<#
+.SYNOPSIS
+  This is a simplified Lab version of the Deploy-Application script.
+#>
+
+# --- THE FIX: Load the Windows Forms Library first ---
+Add-Type -AssemblyName System.Windows.Forms
+
+##*===============================================
+##* VARIABLE DECLARATION
+##*===============================================
+## Variables: Application
+[String]$appVendor = '7-Zip'
+[String]$appName = '7-Zip File Manager'
+[String]$appVersion = '23.01'
+[String]$appArch = 'x64'
+[String]$appLang = 'EN'
+[String]$appRevision = '01'
+[String]$appScriptVersion = '1.0.0'
+[String]$appScriptDate = '02/13/2026'
+[String]$appScriptAuthor = 'Student Lab'
+
+##*===============================================
+##* INSTALLATION LOGIC
+##*===============================================
+
+# Define the folder path
+$dirFiles = "$PSScriptRoot\Files"
+
+# 1. Show Welcome Message (Simulated)
+# Now that we loaded the assembly at the top, this will work!
+[System.Windows.Forms.MessageBox]::Show("Welcome to the installation of $appName", "Installation")
+
+# 2. Perform Installation
+# We create a fake 'Execute-MSI' function so the command works like the real toolkit
+function Execute-MSI {
+    param([string]$Action, [string]$Path)
+    Write-Host "Executing MSI: $Path" -ForegroundColor Cyan
+    Start-Process msiexec.exe -ArgumentList "/i `"$Path`" /qn" -Wait
+}
+
+# --- THIS IS THE LINE YOUR INSTRUCTOR WANTS ---
+# Ensure your 7zip.msi is actually in the C:\PSLab\Toolkit\Files folder!
+Execute-MSI -Action 'Install' -Path "$dirFiles\7zip.msi"
+
+# 3. Finish
+Write-Host "Installation Complete." -ForegroundColor Green
